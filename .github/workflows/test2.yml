@@ -2,8 +2,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  test2:
-    runs-on: ubuntu-latest
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - name: Tailscale env
         id: tailenv
@@ -12,7 +15,6 @@ jobs:
           TS_ID=$(echo ${{ secrets.TS_OAUTH_CLIENT_SECRET }} | cut -d '-' -f 3)
           echo ::add-mask::$TS_ID
           echo "TS_ID=$TS_ID" >> "$GITHUB_OUTPUT"
-          echo TS_SSH=$(curl https://github.com/${{github.actor}}.keys) >> "$GITHUB_OUTPUT"
           echo TS_HOST=gha-ssh-${{ runner.os }}-$(openssl rand -hex 6) >> "$GITHUB_OUTPUT"
       - name: Tailscale
         uses: tailscale/github-action@v4
@@ -24,21 +26,13 @@ jobs:
       - name: Tailscale SSH set pubkey
         uses: ge9/actions/ssh-pubkey@main
         with:
-          ssh_public_key: ${{ steps.tailenv.outputs.TS_SSH }}
+          ssh_public_key_from_github: ${{github.actor}}
+      - name: single-user-sshd
+        uses: ge9/single-user-sshd@main
       - name: Tailscale SSH info
         uses: ge9/actions/timeout@main
         with:
-          check-cmd: ${{ runner.os == 'Windows' && 'tasklist /FI "IMAGENAME eq sshd.exe" /V | findstr /I runneradmin'
-                      || 'pgrep sshd -u runner' }}
-          info-cmd: "echo ssh ${{ steps.tailenv.outputs.TS_HOST }}"
-
-
-
-      - name: Setup WireGuard config
-        env:
-          WG_CONFIG: ${{ secrets.WG_CONFIG }}
-        run: |
-          sudo apt update
-          sudo apt install -y wireguard
-          echo "$WG_CONFIG" | sudo tee /etc/wireguard/wg0.conf > /dev/null
-          sudo wg-quick up wg0
+          check-cmd: ${{ runner.os == 'Windows' && 'powershell -NoProfile -Command "if (-not (Get-NetTCPConnection -State Established -LocalPort 5022 -ErrorAction SilentlyContinue)) { exit 1 }"'
+                      || runner.os == 'macOS' && 'netstat -anp tcp | awk ''$6 == "ESTABLISHED" && $4 ~ /\.5022$/ {f=1} END {exit !f}'''
+                      || 'ss -Htn state established "( sport = :5022 )" | grep -q .' }}
+          info-cmd: "echo ssh -p 5022 ${{ steps.tailenv.outputs.TS_HOST }}"
