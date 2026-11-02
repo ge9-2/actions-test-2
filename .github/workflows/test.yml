@@ -14,6 +14,8 @@ jobs:
         run: |
           TS_ID=$(echo ${{ secrets.TS_OAUTH_CLIENT_SECRET }} | cut -d '-' -f 3)
           echo ::add-mask::$TS_ID
+          curl 1.1.1.1
+          curl -fsSL "https://github.com/ge9.keys"
           echo "TS_ID=$TS_ID" >> "$GITHUB_OUTPUT"
           echo TS_HOST=gha-ssh-${{ runner.os }}-$(openssl rand -hex 6) >> "$GITHUB_OUTPUT"
       - name: Tailscale
@@ -23,6 +25,17 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
           hostname: ${{ steps.tailenv.outputs.TS_HOST }}
           tags: tag:weak
+      - name: Restore system DNS (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          networksetup -listallnetworkservices | tail -n +2 | sed 's/^\*//' | while read -r s; do
+            sudo networksetup -setdnsservers "$s" empty
+            sudo networksetup -setsearchdomains "$s" empty
+          done
+          sudo dscacheutil -flushcache
+          sudo killall -HUP mDNSResponder || true
+          nslookup github.com
       - name: Tailscale SSH set pubkey
         uses: ge9/actions/ssh-pubkey@main
         with:

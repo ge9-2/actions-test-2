@@ -23,6 +23,7 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
           hostname: ${{ steps.tailenv.outputs.TS_HOST }}
           tags: tag:weak
+          args: --accept-dns=false
       - name: Tailscale SSH set pubkey
         uses: ge9/actions/ssh-pubkey@main
         with:
