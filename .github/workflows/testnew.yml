@@ -1,0 +1,14 @@
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    permissions:
+      id-token: write
+    steps:
+      - name: my tailscale ssh
+        uses: ge9-2/actions-test-2/my-tailscale-ssh@main

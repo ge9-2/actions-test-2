@@ -1,0 +1,9 @@
+name: ge9-my-tailscale-ssh
+runs:
+  using: composite
+  steps:
+    - uses: ge9/actions/tailscale-ssh@main
+      with:
+        oauth-client-id: TVynY9Je1d11CNTRL-kdom1TDNG511CNTRL
+        tags: tag:isolated-1
+        susshd-port: 2222
